@@ -1,0 +1,215 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+using namespace std;
+
+void fill_cartan(vector<vector<int>> &cartan_matr,int n){
+    for(int i=0;i<n;i++){
+        for(int j=0;j<n;j++){
+            cin>>cartan_matr[i][j];
+        }
+    }
+}
+
+int scalar_product_weights(vector<int> a,vector<int> b,vector<vector<int>> cartan_matr){
+    int res=0;
+    for(int i=1;i<min(a.size(),b.size());i++){
+        for (int j = 1; j < min(a.size(),b.size()); j++) {
+            res+=cartan_matr[i-1][j-1]*a[i]*b[j];
+        }
+    }
+    return res;
+}
+
+int scalar_product(vector<int> a,vector<int> b){
+    int res=0;
+    for(int i=0;i<min(a.size(),b.size());i++){
+        res+=a[i]*b[i];
+    }
+    return res;
+}
+
+float eq_fund(vector<int> a,vector<int> b){
+    if(a[0]==b[0])
+        return 1;
+    else
+        return 0;
+}
+
+vector<int>sum(vector<int>a,vector<int>b){
+    vector<int> res;
+        for(int i=0;i<min(a.size(),b.size());i++)
+        res.push_back(a[i]+b[i]);
+    return res;
+}
+
+vector<int>sum_weights(vector<int>weight,vector<int>b){
+    vector<int> res;
+    res.push_back(weight[0]);
+    for(int i=1;i<min(weight.size(),b.size());i++)
+        res.push_back(weight[i]+b[i]);
+    return res;
+}
+
+vector<int>mult(float a, vector<int>vec){
+    vector<int> res;
+    for(int i=0;i<vec.size();i++)
+        res.push_back(a*vec[i]);
+    return res;
+}
+
+vector<int>mult_weights(float a, vector<int>vec){
+    vector<int> res;
+    res.push_back(vec[0]);
+    for(int i=1;i<vec.size();i++)
+        res.push_back(a*vec[i]);
+    return res;
+}
+
+vector<vector<int>>dupl(vector<vector<int>>vec) {
+    vector<vector<int>> res;
+    for(int i=0;i<vec.size();i++){
+        bool check=false;
+        for(int j=i+1;j<vec.size();j++){
+            if(scalar_product(sum(vec[i],mult(-1, vec[j])),sum(vec[i],mult(-1, vec[j])))==0) {
+                check=true;
+            }
+        }
+        if(check==false) {
+            res.push_back(vec[i]);
+        }
+    }
+    return res;
+}
+
+void build_weight_system(vector<int> fund_weight,vector<vector<int>> cartan_matr,vector<vector<int>> &weight_system,vector<vector<int>>simple_roots){
+     queue<vector<int>> tasks;
+     weight_system.push_back(fund_weight);
+     tasks.push(fund_weight);
+     int count=0;
+     while(!tasks.empty()&&count<5){
+         count++;
+         vector<int>current = tasks.front();
+         tasks.pop();
+         for(int i=0;i<simple_roots.size();i++){
+             int sz_buf=weight_system.size();
+             vector<int> buf=sum_weights(current,mult_weights(-1*(eq_fund(current,simple_roots[i])+
+                                scalar_product_weights(current,simple_roots[i],cartan_matr)),simple_roots[i]));
+             weight_system.push_back(buf);
+             if(dupl(weight_system).size()!=sz_buf){
+                 tasks.push(buf);
+             } else{
+                 weight_system.pop_back();
+             }
+         }
+     }
+}
+
+void print_vec_vec(vector<vector<int>> e){
+    for(int i=0;i<e.size();i++){
+        for(int j=0;j<e[i].size();j++){
+            cout<<e[i][j]<<' ';
+        }
+        cout<<endl;
+    }
+}
+
+void build_fundamental_weights(vector<vector<int>> &fundamental_weights,int n){
+    for(int i=0;i<n;i++){
+        fundamental_weights[i][0]=i;
+    }
+}
+
+void build_simple_roots(vector<vector<int>>&simple_roots,int n){
+    for(int i=0;i<n;i++){
+        simple_roots[i][0]=i;
+        simple_roots[i][i+1]=1;
+    }
+}
+
+void build_midle_weights(vector<vector<int>>&weight_system){
+    queue<vector<int>>tasks;
+    for (int i = 0; i < weight_system.size(); i++) {
+        tasks.push(weight_system[i]);
+        int count=0;
+        while (!tasks.empty()&&count<15){
+            count++;
+            vector<int>current=tasks.front();
+            tasks.pop();
+            for (int j = 1; j < current.size(); j++) {
+                vector<int> buf(weight_system[i].size(), 0);
+                buf[j] = 1;
+                buf[0] = weight_system[i][0];
+                buf = sum_weights(weight_system[i], buf);
+                if(buf[j]<=0){
+                    bool check= false;
+                    for(int i=0;i<weight_system.size();i++){
+                        if(weight_system[i][j]>=buf[j]){
+                            vector<int>mini_buf=buf;
+                            mini_buf[j]=weight_system[i][j];
+                            if(scalar_product(sum(mini_buf,mult(-1, weight_system[i])),sum(mini_buf,mult(-1, weight_system[i])))==0) {
+                                check=true;
+                            }
+                        }
+                    }
+                    if(check==true) {
+                        int sz_buf = weight_system.size();
+                        weight_system.push_back(buf);
+                        if (dupl(weight_system).size() != sz_buf) {
+                            tasks.push(buf);
+                        } else {
+                            weight_system.pop_back();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void non_primal_weights(vector<vector<int>>&weight_system,vector<vector<int>> cartan_matr,vector<vector<int>>simple_roots){
+    queue<vector<int>> tasks;
+    for (int i = 0; i < weight_system.size(); i++)
+        tasks.push(weight_system[i]);
+    int count=0;
+    while(!tasks.empty()&&count<50){
+        count++;
+        vector<int>current = tasks.front();
+        tasks.pop();
+        for(int i=0;i<simple_roots.size();i++){
+            int sz_buf=weight_system.size();
+            vector<int> buf=sum_weights(current,mult_weights(-1*(eq_fund(current,simple_roots[i])+
+                                                                 scalar_product_weights(current,simple_roots[i],cartan_matr)),simple_roots[i]));
+            weight_system.push_back(buf);
+            if(dupl(weight_system).size()!=sz_buf){
+                tasks.push(buf);
+            } else{
+                weight_system.pop_back();
+            }
+        }
+    }
+}
+
+int main() {
+    int n;
+    cin>>n;
+    vector<vector<int>> cartan_matr(n,vector<int>(n,0));
+    fill_cartan(cartan_matr,n);
+    vector<vector<int>> fundamental_weights(n,vector<int>(n+1,0));
+    build_fundamental_weights(fundamental_weights,n);
+    vector<vector<int>> simple_roots(n,vector<int>(n+1,0));
+    build_simple_roots(simple_roots,n);
+    vector<vector<int>> weight_system;
+    int choose=0;
+    cin>>choose;
+    build_weight_system(fundamental_weights[choose],cartan_matr,weight_system,simple_roots);
+    build_midle_weights(weight_system);
+    non_primal_weights(weight_system,cartan_matr,simple_roots);
+    build_midle_weights(weight_system);
+    sort(weight_system.begin(),weight_system.end());
+    print_vec_vec(weight_system);
+    cout<<weight_system.size()<<endl;
+    return 0;
+}
